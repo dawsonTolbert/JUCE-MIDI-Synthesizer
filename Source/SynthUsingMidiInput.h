@@ -112,7 +112,7 @@ struct SineWaveVoice   : public juce::SynthesiserVoice
                     currentAngle += angleDelta;
                     ++startSample;
 
-                    tailOff *= 0.99; // [8]
+                    tailOff *= 0.9999; // [8]
 
                     if (tailOff <= 0.005)
                     {
@@ -197,6 +197,7 @@ private:
 
 //==============================================================================
 class MainContentComponent   : public juce::AudioAppComponent,
+    /*public juce::Slider::Listener,*/
                                private juce::Timer
 {
 public:
@@ -204,6 +205,14 @@ public:
         : synthAudioSource  (keyboardState),
           keyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
+        /*addAndMakeVisible(decaySlider);
+        decaySlider.setRange(0.99, 0.99999);
+        decaySlider.addListener(this);
+
+        addAndMakeVisible(decayLabel);
+        decayLabel.setText("Decay", juce::dontSendNotification);
+        decayLabel.attachToComponent(&decaySlider, true);*/
+
         addAndMakeVisible(midiInputListLabel);
         midiInputListLabel.setText("MIDI Input:", juce::dontSendNotification);
         midiInputListLabel.attachToComponent(&midiInputList, true);
@@ -246,7 +255,8 @@ public:
     void resized() override
     {
         midiInputList.setBounds(200, 10, getWidth() - 210, 20);
-        keyboardComponent.setBounds (10, 10, getWidth() - 20, getHeight() - 20);
+        /*decaySlider.setBounds(200, 20, getWidth() - 210, 20);*/
+        keyboardComponent.setBounds (10, 40, getWidth() - 20, getHeight() - 20);
     }
 
     void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override
@@ -299,6 +309,9 @@ private:
     juce::ComboBox midiInputList;
     juce::Label midiInputListLabel;
     int lastInputIndex = 0;
+
+    /*juce::Slider decaySlider;
+    juce::Label decayLabel;*/
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };
