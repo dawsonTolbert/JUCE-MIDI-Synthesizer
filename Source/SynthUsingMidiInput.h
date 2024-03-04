@@ -197,7 +197,6 @@ private:
 
 //==============================================================================
 class MainContentComponent   : public juce::AudioAppComponent,
-    /*public juce::Slider::Listener,*/
                                private juce::Timer
 {
 public:
@@ -205,13 +204,13 @@ public:
         : synthAudioSource  (keyboardState),
           keyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
-        /*addAndMakeVisible(decaySlider);
+        addAndMakeVisible(decaySlider);
         decaySlider.setRange(0.99, 0.99999);
-        decaySlider.addListener(this);
+        decaySlider.onValueChange = [this] {decaySlider.setValue(decaySlider.getValue(), juce::dontSendNotification); };
 
         addAndMakeVisible(decayLabel);
         decayLabel.setText("Decay", juce::dontSendNotification);
-        decayLabel.attachToComponent(&decaySlider, true);*/
+        decayLabel.attachToComponent(&decaySlider, true);
 
         addAndMakeVisible(midiInputListLabel);
         midiInputListLabel.setText("MIDI Input:", juce::dontSendNotification);
@@ -255,8 +254,8 @@ public:
     void resized() override
     {
         midiInputList.setBounds(200, 10, getWidth() - 210, 20);
-        /*decaySlider.setBounds(200, 20, getWidth() - 210, 20);*/
-        keyboardComponent.setBounds (10, 40, getWidth() - 20, getHeight() - 20);
+        decaySlider.setBounds(120, 40, getWidth() - 130, 20);
+        keyboardComponent.setBounds (10, 70, getWidth() - 20, getHeight() - 20);
     }
 
     void prepareToPlay (int samplesPerBlockExpected, double sampleRate) override
@@ -310,8 +309,8 @@ private:
     juce::Label midiInputListLabel;
     int lastInputIndex = 0;
 
-    /*juce::Slider decaySlider;
-    juce::Label decayLabel;*/
+    juce::Slider decaySlider;
+    juce::Label decayLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };
