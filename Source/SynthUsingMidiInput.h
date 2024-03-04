@@ -156,6 +156,11 @@ public:
         synth.addSound (new SineWaveSound());       // [2]
     }
 
+    juce::MidiMessageCollector* getMidiCollector()
+    {
+        return &midiCollector;
+    }
+
     void setUsingSineWaveSound()
     {
         synth.clearSounds();
@@ -164,6 +169,7 @@ public:
     void prepareToPlay (int /*samplesPerBlockExpected*/, double sampleRate) override
     {
         synth.setCurrentPlaybackSampleRate (sampleRate); // [3]
+        midiCollector.reset(sampleRate);
     }
 
     void releaseResources() override {}
@@ -173,6 +179,9 @@ public:
         bufferToFill.clearActiveBufferRegion();
 
         juce::MidiBuffer incomingMidi;
+        midiCollector.removeNextBlockOfMessages(incomingMidi,
+            bufferToFill.startSample);
+
         keyboardState.processNextMidiBuffer (incomingMidi, bufferToFill.startSample,
                                              bufferToFill.numSamples, true);       // [4]
 
@@ -183,6 +192,7 @@ public:
 private:
     juce::MidiKeyboardState& keyboardState;
     juce::Synthesiser synth;
+    juce::MidiMessageCollector midiCollector;
 };
 
 //==============================================================================
@@ -194,6 +204,33 @@ public:
         : synthAudioSource  (keyboardState),
           keyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
+        addAndMakeVisible(midiInputListLabel);
+        midiInputListLabel.setText("MIDI Input:", juce::dontSendNotification);
+        midiInputListLabel.attachToComponent(&midiInputList, true);
+
+        auto midiInputs = juce::MidiInput::getAvailableDevices();
+        addAndMakeVisible(midiInputList);
+        midiInputList.setTextWhenNoChoicesAvailable("No MIDI Inputs Enabled");
+
+        juce::StringArray midiInputNames;
+        for (auto input : midiInputs) {
+            midiInputNames.add(input.name);
+        }
+
+        midiInputList.addItemList(midiInputNames, 1);
+        midiInputList.onChange = [this] {setMidiInput(midiInputList.getSelectedItemIndex()); };
+
+        for (auto input : midiInputs) {
+            if (deviceManager.isMidiInputDeviceEnabled(input.identifier)) {
+                setMidiInput(midiInputs.indexOf(input));
+                break;
+            }
+        }
+
+        if (midiInputList.getSelectedId() == 0) {
+            setMidiInput(0);
+        }
+
         addAndMakeVisible (keyboardComponent);
         setAudioChannels (0, 2);
 
@@ -208,6 +245,7 @@ public:
 
     void resized() override
     {
+        midiInputList.setBounds(200, 10, getWidth() - 210, 20);
         keyboardComponent.setBounds (10, 10, getWidth() - 20, getHeight() - 20);
     }
 
@@ -233,10 +271,34 @@ private:
         stopTimer();
     }
 
+    void setMidiInput(int index)
+    {
+        auto list = juce::MidiInput::getAvailableDevices();
+
+        deviceManager.removeMidiInputDeviceCallback(list[lastInputIndex].identifier,
+            synthAudioSource.getMidiCollector());
+
+        auto newInput = list[index];
+
+        if (! deviceManager.isMidiInputDeviceEnabled(newInput.identifier)) {
+            deviceManager.setMidiInputDeviceEnabled(newInput.identifier, true);
+        }
+
+        deviceManager.addMidiInputDeviceCallback(newInput.identifier,
+            synthAudioSource.getMidiCollector());
+        midiInputList.setSelectedId(index + 1, juce::dontSendNotification);
+
+        lastInputIndex = index;
+    }
+
     //==========================================================================
     juce::MidiKeyboardState keyboardState;
     SynthAudioSource synthAudioSource;
     juce::MidiKeyboardComponent keyboardComponent;
+
+    juce::ComboBox midiInputList;
+    juce::Label midiInputListLabel;
+    int lastInputIndex = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainContentComponent)
 };
