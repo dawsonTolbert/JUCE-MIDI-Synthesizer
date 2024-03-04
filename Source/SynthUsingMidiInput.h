@@ -59,7 +59,7 @@ struct SineWaveSound   : public juce::SynthesiserSound
 //==============================================================================
 struct SineWaveVoice   : public juce::SynthesiserVoice
 {
-    SineWaveVoice() {}
+    SineWaveVoice() : decay(0.999) {}
 
     bool canPlaySound (juce::SynthesiserSound* sound) override
     {
@@ -96,6 +96,11 @@ struct SineWaveVoice   : public juce::SynthesiserVoice
     void pitchWheelMoved (int) override      {}
     void controllerMoved (int, int) override {}
 
+    void setDecay(double newDecay)
+    {
+        decay = newDecay;
+    }
+
     void renderNextBlock (juce::AudioSampleBuffer& outputBuffer, int startSample, int numSamples) override
     {
         if (angleDelta != 0.0)
@@ -112,7 +117,7 @@ struct SineWaveVoice   : public juce::SynthesiserVoice
                     currentAngle += angleDelta;
                     ++startSample;
 
-                    tailOff *= 0.9999; // [8]
+                    tailOff *= decay; // [8]
 
                     if (tailOff <= 0.005)
                     {
@@ -141,6 +146,7 @@ struct SineWaveVoice   : public juce::SynthesiserVoice
 
 private:
     double currentAngle = 0.0, angleDelta = 0.0, level = 0.0, tailOff = 0.0;
+    double decay = 0.0;
 };
 
 //==============================================================================
@@ -189,6 +195,15 @@ public:
                                bufferToFill.startSample, bufferToFill.numSamples); // [5]
     }
 
+    void setDecay(double newDecay)
+    {
+        for (int i = 0; i < synth.getNumVoices(); ++i) {
+            if (auto* sineWaveVoice = dynamic_cast<SineWaveVoice*>(synth.getVoice(i))) {
+                sineWaveVoice->setDecay(newDecay);
+            }
+        }
+    }
+
 private:
     juce::MidiKeyboardState& keyboardState;
     juce::Synthesiser synth;
@@ -197,7 +212,8 @@ private:
 
 //==============================================================================
 class MainContentComponent   : public juce::AudioAppComponent,
-                               private juce::Timer
+                               private juce::Timer,
+                               public juce::Slider::Listener
 {
 public:
     MainContentComponent()
@@ -205,8 +221,8 @@ public:
           keyboardComponent (keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
         addAndMakeVisible(decaySlider);
-        decaySlider.setRange(0.99, 0.99999);
-        decaySlider.onValueChange = [this] {decaySlider.setValue(decaySlider.getValue(), juce::dontSendNotification); };
+        decaySlider.setRange(0.999, 0.99999);
+        decaySlider.addListener(this);
 
         addAndMakeVisible(decayLabel);
         decayLabel.setText("Decay", juce::dontSendNotification);
@@ -271,6 +287,13 @@ public:
     void releaseResources() override
     {
         synthAudioSource.releaseResources();
+    }
+
+    void sliderValueChanged(juce::Slider* slider) override
+    {
+        if (slider == &decaySlider) {
+            synthAudioSource.setDecay(decaySlider.getValue());
+        }
     }
 
 private:
